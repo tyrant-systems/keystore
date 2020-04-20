@@ -1,9 +1,27 @@
 version: "3"
 
 services:
+  gateway:
+    image: keystore-lb
+    networks:
+      - reverseproxy
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /home/tyrant/certs:/letsencrypt:ro
   keyserver:
     image: keystore
+    depends_on:
+      - gateway
+    networks:
+      - reverseproxy
     ports:
-      - 80:3030
+      - 3030:3030
     volumes:
       - /home/tyrant/src/tyrant.systems/realm-manifest/user:/srv/realm-manifest:ro
+
+networks:
+  reverseproxy:
+    external:
+      name: keystore_default
