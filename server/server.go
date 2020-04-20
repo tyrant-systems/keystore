@@ -12,6 +12,15 @@ var (
 	ErrNotAKeyFile = errors.New("not a keyfile")
 )
 
+// withLogging is a simple http middleware handler for logging all inbound requests.
+func withLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s", r.Method, r.URL.Path)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // restrictedFileSystem allows reading only files named "key".
 type restrictedFileSystem struct {
 	fs http.FileSystem
@@ -19,8 +28,6 @@ type restrictedFileSystem struct {
 
 // Open implements the http.FileSystem interface. It serves only files named "key".
 func (rfs restrictedFileSystem) Open(resource string) (http.File, error) {
-	log.Printf("GET %s", resource)
-
 	_, f := path.Split(resource)
 	if f != "keys" {
 		return nil, ErrNotAKeyFile
@@ -59,7 +66,17 @@ func New(rootDir string) KeyServer {
 
 // ListenAndServeKeyFiles starts the key server.
 func (ks KeyServer) ListenAndServeKeyFiles(addr string) error {
-	fs := http.FileServer(ks.fs)
-	ks.mux.Handle("/user/", http.StripPrefix("/user", fs))
+	ks.mux.Handle(
+		"/",
+		withLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "500 Internal Server Error", 500)
+		})),
+	)
+
+	ks.mux.Handle(
+		"/user/",
+		withLogging(http.StripPrefix("/user", http.FileServer(ks.fs))),
+	)
+
 	return http.ListenAndServe(addr, ks.mux)
 }
