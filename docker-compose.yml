@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  keyserver:
+    image: keystore
+    ports:
+      - 80:3030
+    volumes:
+      - /home/tyrant/src/tyrant.systems/realm-manifest/user:/srv/realm-manifest:ro
